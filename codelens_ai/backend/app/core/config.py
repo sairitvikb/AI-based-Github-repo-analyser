@@ -38,7 +38,7 @@ class Settings(BaseSettings):
 
     cors_origins: list[str] = [
     "http://localhost:5173",
-    "https://codelens-frontend.onrender.com",
+    "https://codelens-frontend-o82f.onrender.com",
     ]
 
     model_config = SettingsConfigDict(
