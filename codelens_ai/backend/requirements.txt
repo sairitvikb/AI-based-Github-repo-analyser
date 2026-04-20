@@ -10,3 +10,4 @@ langchain-openai==0.3.32
 langchain-community==0.3.27
 pytest==8.4.1
 pytest-asyncio==1.1.0
+groq
