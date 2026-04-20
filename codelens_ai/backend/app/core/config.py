@@ -36,7 +36,10 @@ class Settings(BaseSettings):
 
     log_level: str = "INFO"
 
-    cors_origins: list[str] = ["http://localhost:5173"]
+    cors_origins: list[str] = [
+    "http://localhost:5173",
+    "https://codelens-frontend.onrender.com",
+    ]
 
     model_config = SettingsConfigDict(
         env_file=".env",
