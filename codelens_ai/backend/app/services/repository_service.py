@@ -164,8 +164,7 @@ class RepositoryService:
         db.commit()
         db.refresh(repository)
 
-        self.vector_store_service.reset_collection(repository.id)
-        self.vector_store_service.upsert_chunks(repository.id, chunks)
+       
 
         repository = self._load_repository(db, repository.id)
         assert repository is not None
