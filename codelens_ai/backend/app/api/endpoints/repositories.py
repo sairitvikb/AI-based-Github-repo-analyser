@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
 from groq import Groq
+from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.db.session import get_db
@@ -56,8 +56,10 @@ def get_improvements(repo_id: int, db: Session = Depends(get_db)):
 @router.post("/repo/{repo_id}/chat", response_model=ChatResponse)
 def chat_with_repository(repo_id: int, payload: ChatRequest, db: Session = Depends(get_db)):
     repository = service.get_repository(db, repo_id)
-    files_response = service.get_file_insights(db, repo_id)
+    if not repository:
+        raise HTTPException(status_code=404, detail="Repository not found")
 
+    files_response = service.get_file_insights(db, repo_id)
     file_items = files_response.files[:15]
 
     context = "\n\n".join(
@@ -65,8 +67,6 @@ def chat_with_repository(repo_id: int, payload: ChatRequest, db: Session = Depen
     )
 
     prompt = f"""
-You are an elite repository assistant.
-
 Repository: {repository.owner}/{repository.name}
 
 Known files:
@@ -77,32 +77,49 @@ User question:
 
 Instructions:
 - Answer naturally like ChatGPT
-- Be clear, smart, concise
-- Use repository evidence
+- Be clear, smart, and concise
+- Use repository evidence only
 - Mention file names when useful
 - If uncertain, say so honestly
 """
 
     try:
+        if not settings.groq_api_key:
+            return ChatResponse(
+                answer="Groq API key is not configured on the backend.",
+                sources=[],
+            )
+
         client = Groq(api_key=settings.groq_api_key)
 
         response = client.chat.completions.create(
-            model=settings.groq_model,
+            model="llama-3.3-70b-versatile",
             temperature=0.2,
+            max_tokens=700,
             messages=[
-                {"role": "user", "content": prompt}
+                {
+                    "role": "system",
+                    "content": (
+                        "You are an expert repository assistant. "
+                        "Answer clearly, accurately, and concisely using only the provided repository context."
+                    ),
+                },
+                {
+                    "role": "user",
+                    "content": prompt,
+                },
             ],
         )
 
-        answer = response.choices[0].message.content
+        answer = (response.choices[0].message.content or "").strip()
 
         return ChatResponse(
-            answer=answer,
-            sources=[]
+            answer=answer if answer else "I could not generate an answer from the repository context.",
+            sources=[],
         )
 
     except Exception as exc:
         return ChatResponse(
             answer=f"Groq request failed: {str(exc)}",
-            sources=[]
+            sources=[],
         )
