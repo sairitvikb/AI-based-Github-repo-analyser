@@ -35,7 +35,6 @@ It helps developers quickly understand a codebase by generating AI-powered summa
 - Groq API
 - LLM-based repository summarization
 - Heuristic code analysis
-- Optional vector search / chunking support
 
 ### Deployment
 - Render
@@ -77,3 +76,37 @@ codelens_ai/
 │   └── public/
 │
 └── README.md
+```
+## 🎯 Example Use Cases
+
+- Understand unfamiliar repositories quickly  
+- Prepare for technical interviews  
+- Accelerate developer onboarding  
+- Evaluate open-source projects  
+- Detect maintainability issues early  
+- Perform lightweight engineering due diligence  
+
+---
+
+## ⚙️ Local Setup
+
+### 📥 Clone Repository
+
+```bash
+git clone https://github.com/sairitvikb/AI-based-Github-repo-analyser.git
+cd AI-based-Github-repo-analyser/codelens_ai
+```
+## 🖥️ Backend Setup
+
+```bash
+cd backend
+pip install -r requirements.txt
+uvicorn app.main:app --reload
+```
+## 🌐 Frontend Setup
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
