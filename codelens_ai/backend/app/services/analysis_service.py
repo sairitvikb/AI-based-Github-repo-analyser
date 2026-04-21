@@ -373,12 +373,25 @@ Requirements:
         try:
             from groq import Groq
 
+            if not settings.groq_api_key:
+                raise ValueError("Missing GROQ_API_KEY")
+
             client = Groq(api_key=settings.groq_api_key)
 
             response = client.chat.completions.create(
-                model=settings.groq_model,
+                model="llama-3.3-70b-versatile",
                 temperature=0.2,
-                messages=[{"role": "user", "content": prompt}],
+                max_tokens=700,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "You are an expert software architect. Summarize repositories clearly and concisely.",
+                    },
+                    {
+                        "role": "user",
+                        "content": prompt,
+                    },
+                ],
             )
 
             text = (response.choices[0].message.content or "").strip()
@@ -405,7 +418,9 @@ Requirements:
                 likely_stack=likely_stack,
             )
 
-        except Exception:
+        except Exception as exc:
+            print(f"Groq summary generation failed: {exc}")
+
             concise = f"{repo_name} is a software repository built using {', '.join(likely_stack[:3])}."
             detailed = f"The project likely focuses on {description}. It includes multiple modules and developer workflows."
             architecture = "The codebase is organized into separate modules for business logic, configuration, and interfaces."
