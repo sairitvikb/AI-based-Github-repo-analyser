@@ -6,7 +6,7 @@ CodeLens AI is a full-stack AI-powered GitHub Repository Analyzer that helps use
 
 The platform reduces manual repository review time from hours to minutes using automation, AI summarization, and repository intelligence.
 
----
+
 
 ## 2. Problem Statement
 
@@ -167,3 +167,40 @@ sequenceDiagram
     Backend->>DB: Save results
     Backend-->>Frontend: Return dashboard data
 ```
+## 5.Design Choices & Assumptions
+
+## Design Choices
+
+### 1. FastAPI for Backend
+Chosen for high performance, rapid API development, and built-in Swagger documentation.
+
+### 2. React + TypeScript for Frontend
+Used to build a modern, scalable, and maintainable dashboard UI.
+
+### 3. Groq API for AI Features
+Selected for fast inference speed and strong summarization quality.
+
+### 4. Modular Service Architecture
+Separated logic into services (GitHub, Analysis, LLM, Repository) for maintainability and scalability.
+
+### 5. Prioritized File Analysis
+Only important repository files are analyzed to improve speed and reduce processing cost.
+
+
+
+## Assumptions
+
+### 1. Public GitHub Repositories
+The system assumes repositories are publicly accessible through GitHub API.
+
+### 2. Important Files Give Enough Context
+Analyzing top-priority files provides sufficient insight without scanning every file.
+
+### 3. AI Summaries Improve Understanding
+Users benefit from concise AI-generated summaries over manual code reading.
+
+### 4. Moderate Repository Size
+The platform is optimized for small to medium repositories in the current version.
+
+### 5. Stable Internet/API Access
+The system assumes access to GitHub API and Groq API during analysis.
