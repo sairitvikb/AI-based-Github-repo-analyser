@@ -61,3 +61,109 @@ GitHub API + AI Engine
  ↓
 Database
 ```
+## Class diagram
+```mermaid
+classDiagram
+    class RepositoryService {
+        +analyze_repository()
+        +get_repository()
+        +get_summary()
+        +get_risks()
+        +get_improvements()
+        +chat()
+    }
+
+    class GitHubService {
+        +parse_repo_url()
+        +get_repository_metadata()
+        +fetch_repository_files()
+        +get_file_content()
+    }
+
+    class AnalysisService {
+        +summarize_file()
+        +estimate_complexity()
+        +detect_risks()
+        +suggest_improvements()
+        +build_repo_summary()
+    }
+
+    class LLMService {
+        +answer_question()
+    }
+
+    class VectorStoreService {
+        +reset_collection()
+        +upsert_chunks()
+        +search()
+    }
+
+    RepositoryService --> GitHubService
+    RepositoryService --> AnalysisService
+    RepositoryService --> LLMService
+    RepositoryService --> VectorStoreService
+```
+## Data Model Class Diagram
+```mermaid
+classDiagram
+    class Repository {
+        +id: int
+        +repo_url: string
+        +owner: string
+        +name: string
+        +description: string
+        +default_branch: string
+        +stars: int
+        +forks: int
+        +open_issues: int
+        +primary_language: string
+    }
+
+    class RepositorySummary {
+        +concise_summary: string
+        +detailed_summary: string
+        +architecture_summary: string
+        +onboarding_summary: string
+    }
+
+    class RepositoryRisk {
+        +title: string
+        +severity: string
+        +description: string
+    }
+
+    class RepositoryImprovement {
+        +title: string
+        +priority: string
+        +description: string
+    }
+
+    class FileInsight {
+        +path: string
+        +language: string
+        +summary: string
+        +complexity_score: int
+    }
+
+    Repository --> RepositorySummary
+    Repository --> RepositoryRisk
+    Repository --> RepositoryImprovement
+    Repository --> FileInsight
+```
+## Request / Response Flow Diagram
+```mermaid
+sequenceDiagram
+    actor User
+    participant Frontend
+    participant Backend
+    participant GitHub
+    participant AI
+    participant DB
+
+    User->>Frontend: Enter GitHub URL
+    Frontend->>Backend: POST /analyze
+    Backend->>GitHub: Fetch repo files
+    Backend->>AI: Generate summaries
+    Backend->>DB: Save results
+    Backend-->>Frontend: Return dashboard data
+```
