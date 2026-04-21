@@ -22,7 +22,7 @@ Developers, recruiters, and engineering managers often need to understand unfami
 
 CodeLens AI solves this by automatically analyzing repositories and presenting actionable insights.
 
----
+
 
 ## 3. Goals
 
@@ -44,7 +44,7 @@ CodeLens AI solves this by automatically analyzing repositories and presenting a
 - Cloud deployable  
 - Maintainable codebase  
 
----
+
 
 ## 4. High-Level Architecture
 
