@@ -62,7 +62,7 @@ class RepositoryService:
         ranked_candidates = sorted(
             file_candidates,
             key=lambda item: (get_file_priority(item["path"]), -item["size"]),
-            reverse=True,
+            
         )
 
         max_files = settings.max_files_to_analyze
