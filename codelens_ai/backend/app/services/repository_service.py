@@ -72,7 +72,7 @@ class RepositoryService:
         chunks: list[dict[str, Any]] = []
 
         for file_item in selected_candidates:
-            content = self.github_service.get_file_content(owner, name, file_item["path"])
+            content = self.github_service.get_file_content_by_sha(owner, name, file_item["sha"])
             summary = self.analysis_service.summarize_file(file_item["path"], content)
             complexity_score = self.analysis_service.estimate_complexity(content)
 
