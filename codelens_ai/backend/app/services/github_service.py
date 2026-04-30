@@ -74,6 +74,18 @@ class GitHubService:
             return ""
         return base64.b64decode(encoded_content).decode("utf-8", errors="ignore")
 
+    def get_file_content_by_sha(self, owner: str, repo: str, sha: str) -> str:
+       response = self.client.get(f"/repos/{owner}/{repo}/git/blobs/{sha}")
+       self._raise_for_status(response)
+
+       data = response.json()
+       encoded_content = data.get("content", "")
+
+       if not encoded_content:
+          return ""
+
+       return base64.b64decode(encoded_content).decode("utf-8", errors="ignore")
+
     def _raise_for_status(self, response: httpx.Response) -> None:
         if response.status_code == 403 and "rate limit" in response.text.lower():
             raise ValueError("GitHub API rate limit reached. Add a token or try again later.")
