@@ -29,8 +29,8 @@ class Settings(BaseSettings):
 
     # Embeddings / analysis
     embedding_model: str = "text-embedding-3-small"
-    max_file_bytes: int = 150000
-    max_files_to_analyze: int = 150
+    max_file_bytes: int = 50000
+    max_files_to_analyze: int = 90
     chunk_size: int = 1200
     chunk_overlap: int = 200
 
