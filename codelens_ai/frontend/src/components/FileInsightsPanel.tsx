@@ -2,6 +2,7 @@ import { FileInsight } from "../types";
 
 interface Props {
   files: FileInsight[];
+  selectedFilePath?: string | null;
 }
 
 function getComplexityClasses(score: number) {
@@ -24,7 +25,10 @@ function cleanSummary(summary: string) {
     .trim();
 }
 
-export default function FileInsightsPanel({ files }: Props) {
+export default function FileInsightsPanel({
+  files,
+  selectedFilePath,
+}: Props) {
   return (
     <section className="card p-6">
       <div className="flex items-center justify-between gap-3">
@@ -34,45 +38,61 @@ export default function FileInsightsPanel({ files }: Props) {
             High-signal files selected from the analyzed repository.
           </p>
         </div>
+
         <span className="rounded-full border border-slate-800 bg-slate-900 px-3 py-1 text-xs font-medium text-slate-300">
           {files.length} files
         </span>
       </div>
 
       <div className="mt-5 grid gap-4">
-        {files.map((file) => (
-          <article
-            key={file.id}
-            className="group rounded-2xl border border-slate-800 bg-slate-950/60 p-4 transition-all duration-200 hover:border-slate-700 hover:bg-slate-900/80"
-          >
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-lg font-semibold text-cyan-300">
-                  {file.path}
+        {files.map((file) => {
+          const isSelected = file.path === selectedFilePath;
+
+          return (
+            <article
+              key={file.id}
+              className={`group rounded-2xl border p-4 transition-all duration-300 ${
+                isSelected
+                  ? "border-cyan-400 bg-cyan-400/10 shadow-lg shadow-cyan-500/20"
+                  : "border-slate-800 bg-slate-950/60 hover:border-slate-700 hover:bg-slate-900/80"
+              }`}
+            >
+              {isSelected && (
+                <div className="mb-3 rounded-xl border border-cyan-400/30 bg-cyan-400/10 px-3 py-2 text-xs font-semibold text-cyan-200">
+                  Selected from risk finding
+                </div>
+              )}
+
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-lg font-semibold text-cyan-300">
+                    {file.path}
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="rounded-full border border-slate-700 bg-slate-900 px-2.5 py-1 text-xs font-medium text-slate-300">
+                    {file.language || "Unknown"}
+                  </span>
+
+                  <span
+                    className={`rounded-full px-2.5 py-1 text-xs font-medium ${getComplexityClasses(
+                      file.complexity_score
+                    )}`}
+                  >
+                    Complexity {file.complexity_score}/10
+                  </span>
+                </div>
+              </div>
+
+              <div className="mt-3 overflow-hidden rounded-xl bg-slate-900/70 p-4">
+                <p className="line-clamp-3 text-sm leading-6 text-slate-300">
+                  {cleanSummary(file.summary)}
                 </p>
               </div>
-
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="rounded-full border border-slate-700 bg-slate-900 px-2.5 py-1 text-xs font-medium text-slate-300">
-                  {file.language || "Unknown"}
-                </span>
-                <span
-                  className={`rounded-full px-2.5 py-1 text-xs font-medium ${getComplexityClasses(
-                    file.complexity_score
-                  )}`}
-                >
-                  Complexity {file.complexity_score}/10
-                </span>
-              </div>
-            </div>
-
-            <div className="mt-3 overflow-hidden rounded-xl bg-slate-900/70 p-4">
-              <p className="line-clamp-3 text-sm leading-6 text-slate-300">
-                {cleanSummary(file.summary)}
-              </p>
-            </div>
-          </article>
-        ))}
+            </article>
+          );
+        })}
       </div>
     </section>
   );
