@@ -33,6 +33,7 @@ export default function DashboardPage() {
   const [improvements, setImprovements] = useState<ImprovementItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeSection, setActiveSection] = useState("overview");
 
   useEffect(() => {
     async function loadDashboard() {
@@ -75,10 +76,25 @@ export default function DashboardPage() {
     return askRepositoryQuestion(repoId, question);
   };
 
+  const scrollToSection = (sectionId: string) => {
+    setActiveSection(sectionId);
+    document.getElementById(sectionId)?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  };
+
   if (loading) {
     return (
-      <main className="mx-auto max-w-6xl px-6 py-16 text-slate-300">
-        Loading dashboard...
+      <main className="relative mx-auto max-w-7xl px-6 py-16 text-slate-300">
+        <div className="pointer-events-none fixed inset-0 -z-10 bg-[radial-gradient(circle_at_top_left,rgba(34,211,238,0.14),transparent_35%),radial-gradient(circle_at_top_right,rgba(99,102,241,0.14),transparent_35%)]" />
+
+        <div className="rounded-3xl border border-slate-800 bg-slate-900/80 p-8">
+          <div className="mb-4 h-7 w-64 animate-pulse rounded bg-slate-800" />
+          <div className="mb-3 h-4 w-full max-w-3xl animate-pulse rounded bg-slate-800" />
+          <div className="h-4 w-2/3 animate-pulse rounded bg-slate-800" />
+          <p className="mt-6 text-cyan-300">Loading dashboard...</p>
+        </div>
       </main>
     );
   }
@@ -92,51 +108,115 @@ export default function DashboardPage() {
   }
 
   return (
-    <main className="mx-auto max-w-7xl px-6 py-10">
+    <main className="relative mx-auto max-w-7xl px-6 py-10">
+      <div className="pointer-events-none fixed inset-0 -z-10 bg-[radial-gradient(circle_at_top_left,rgba(34,211,238,0.14),transparent_35%),radial-gradient(circle_at_top_right,rgba(99,102,241,0.14),transparent_35%)]" />
+
       {/* Header */}
-      <section className="mb-8 rounded-3xl border border-slate-800 bg-slate-900/80 p-8 shadow-xl">
+      <section className="mb-8 overflow-hidden rounded-3xl border border-slate-800 bg-slate-900/80 p-8 shadow-xl transition hover:border-cyan-400/30">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <Link to="/" className="text-sm text-cyan-300 hover:text-cyan-200">
+            <Link
+              to="/"
+              className="inline-flex items-center rounded-full border border-cyan-400/20 bg-cyan-400/10 px-4 py-2 text-sm text-cyan-300 transition hover:bg-cyan-400/20 hover:text-cyan-100"
+            >
               ← Analyze another repository
             </Link>
 
-            <h1 className="mt-3 text-4xl font-bold text-white">
+            <h1 className="mt-5 text-4xl font-bold text-white">
               {repository.owner}/{repository.name}
             </h1>
 
             <p className="mt-3 max-w-3xl text-slate-400 leading-relaxed">
               {repository.description || "No description provided."}
             </p>
+
+            <div className="mt-5 flex flex-wrap gap-3">
+              <span className="rounded-full border border-slate-700 bg-slate-950/60 px-4 py-2 text-sm text-slate-300">
+                AI Repository Analysis
+              </span>
+              <span className="rounded-full border border-slate-700 bg-slate-950/60 px-4 py-2 text-sm text-slate-300">
+                File Insights
+              </span>
+              <span className="rounded-full border border-slate-700 bg-slate-950/60 px-4 py-2 text-sm text-slate-300">
+                Risk Detection
+              </span>
+            </div>
           </div>
 
-          <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 px-5 py-4 text-sm text-cyan-200">
-            Completed in{" "}
-            <span className="font-semibold text-white">
+          <div className="rounded-3xl border border-cyan-400/20 bg-cyan-400/10 p-6 text-center">
+            <p className="text-sm text-cyan-200">Analysis Time</p>
+            <p className="mt-2 text-3xl font-bold text-white">
               {repository.analysis_duration_seconds}s
-            </span>
+            </p>
+            <p className="mt-1 text-xs text-slate-400">
+              Completed successfully
+            </p>
           </div>
         </div>
       </section>
 
-      <SummaryCards repository={repository} summary={summary} />
+      {/* Sticky Navigation */}
+      <nav className="sticky top-4 z-20 mb-8 rounded-2xl border border-slate-800 bg-slate-950/80 p-2 backdrop-blur">
+        <div className="flex flex-wrap gap-2">
+          {[
+            { id: "overview", label: "Overview" },
+            { id: "risks", label: "Risks" },
+            { id: "improvements", label: "Improvements" },
+            { id: "files", label: "Files & Chat" },
+            { id: "summary", label: "Deep Summary" },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => scrollToSection(tab.id)}
+              className={`rounded-xl px-4 py-2 text-sm font-medium transition ${
+                activeSection === tab.id
+                  ? "bg-cyan-400 text-slate-950 shadow-lg shadow-cyan-500/20"
+                  : "text-slate-300 hover:bg-slate-800 hover:text-white"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      </nav>
 
-      <div className="mt-6 grid gap-6 xl:grid-cols-2">
-        <LanguageChart languageBreakdown={repository.language_breakdown} />
-        <RiskPanel risks={risks} />
-      </div>
+      {/* Overview */}
+      <section id="overview" className="scroll-mt-28">
+        <SummaryCards repository={repository} summary={summary} />
+      </section>
 
-      <div className="mt-6">
+      {/* Risks + Language */}
+      <section id="risks" className="mt-6 grid scroll-mt-28 gap-6 xl:grid-cols-2">
+        <div className="transition duration-300 hover:-translate-y-1">
+          <LanguageChart languageBreakdown={repository.language_breakdown} />
+        </div>
+
+        <div className="transition duration-300 hover:-translate-y-1">
+          <RiskPanel risks={risks} />
+        </div>
+      </section>
+
+      {/* Improvements */}
+      <section id="improvements" className="mt-6 scroll-mt-28 transition duration-300 hover:-translate-y-1">
         <ImprovementOpportunities improvements={improvements} />
-      </div>
+      </section>
 
-      <div className="mt-6 grid gap-6 xl:grid-cols-[1.1fr,0.9fr]">
-        <FileInsightsPanel files={files} />
-        <ChatPanel onAsk={handleAsk} />
-      </div>
+      {/* Files + Chat */}
+      <section
+        id="files"
+        className="mt-6 grid scroll-mt-28 gap-6 xl:grid-cols-[1.1fr,0.9fr]"
+      >
+        <div className="transition duration-300 hover:-translate-y-1">
+          <FileInsightsPanel files={files} />
+        </div>
 
-      {/* Detailed Text Sections */}
-      <section className="mt-6 grid gap-6 lg:grid-cols-2">
+        <div className="transition duration-300 hover:-translate-y-1">
+          <ChatPanel onAsk={handleAsk} />
+        </div>
+      </section>
+
+      {/* Detailed Summary */}
+      <section id="summary" className="mt-6 grid scroll-mt-28 gap-6 lg:grid-cols-2">
         <div className="rounded-3xl border border-slate-800 bg-slate-900/80 p-7 shadow-lg transition hover:-translate-y-1 hover:border-cyan-400/40 hover:shadow-cyan-500/10">
           <div className="mb-4 flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-cyan-400/10 text-xl">
