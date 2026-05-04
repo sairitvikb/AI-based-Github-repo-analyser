@@ -126,7 +126,7 @@ export default function DashboardPage() {
         <p className="mt-3 text-slate-300">{summary.detailed_summary}</p>
 
         <h4 className="mt-5 text-base font-semibold">Developer Onboarding</h4>
-        <p className="mt-2 text-slate-300">{summary.onboarding_summary}</p>
+        <p className="mt-3 text-slate-300">{summary.onboarding_summary}</p>
       </div>
     </main>
   );
