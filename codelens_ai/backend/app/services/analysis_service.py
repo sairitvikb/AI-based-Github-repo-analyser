@@ -30,16 +30,12 @@ class AnalysisService:
         filename = lower_path.split("/")[-1]
 
         if filename == "readme.md":
-            if "libs/core" in lower_path:
-                return "LangChain Core package README covering purpose, installation, and usage of the core library."
-            if "libs/" in lower_path:
-                return "Library-level README describing package purpose, usage, and contribution guidance inside the monorepo."
-            return "Top-level repository README introducing the project, quickstart setup, and main developer entry points."
+            return "Top-level README describing the repository purpose, setup flow, usage instructions, and main developer entry points."
 
         if lower_path.endswith(".md"):
             heading = next((line.lstrip("# ").strip() for line in lines if line.startswith("#")), "")
             if heading:
-                return f"Documentation page focused on '{heading}', likely used for setup, onboarding, or developer reference."
+                return f"Documentation focused on {heading}, useful for setup, onboarding, or developer reference."
             return "Markdown documentation used for onboarding, setup instructions, or technical reference."
 
         if lower_path.endswith(("docker-compose.yml", "docker-compose.yaml")):
@@ -47,12 +43,12 @@ class AnalysisService:
 
         if lower_path.endswith((".yml", ".yaml")):
             if ".github/workflows/" in lower_path:
-                return "CI/CD workflow file used for automated testing, linting, builds, or deployment."
-            return "YAML configuration file used for automation, environment settings, or build tooling."
+                return "CI/CD workflow used for automated testing, linting, builds, or deployment."
+            return "YAML configuration used for automation, environment settings, or build tooling."
 
         if lower_path.endswith(".json"):
             if "package.json" in lower_path:
-                return "JavaScript package manifest containing dependencies, scripts, and package metadata."
+                return "JavaScript package manifest defining dependencies, scripts, and frontend/backend tooling metadata."
             return "JSON configuration or metadata file storing structured project settings."
 
         if lower_path.endswith(".py"):
@@ -61,30 +57,45 @@ class AnalysisService:
             classes = self._count_matches(r"^\s*class\s+\w+", content)
 
             if "__init__.py" in lower_path:
-                return "Package initializer that exposes public exports, sets metadata, or organizes module imports."
+                return "Package initializer that organizes module exports and makes this directory importable."
+
+            if "test" in lower_path:
+                tested_area = filename.replace("test_", "").replace("_test", "").replace(".py", "")
+                tested_area = tested_area.replace("_", " ").strip() or "core functionality"
+
+                details = []
+                if functions:
+                    details.append(f"{functions} test/helper function{'s' if functions != 1 else ''}")
+                if classes:
+                    details.append(f"{classes} test class{'es' if classes != 1 else ''}")
+                if imports:
+                    details.append(f"dependencies such as {', '.join(imports[:3])}")
+
+                extra = f" It includes {', '.join(details)}." if details else ""
+                return (
+                    f"Automated test suite focused on {tested_area}, validating expected behavior, "
+                    f"edge cases, and regression safety for that part of the codebase.{extra}"
+                )
 
             if "exception" in lower_path:
-                return "Defines custom exception classes used for consistent error handling in this module."
+                return "Defines custom exception classes used to keep error handling consistent across the module."
 
             if "parser" in lower_path:
                 return "Implements parsing logic that converts raw input into validated internal structures."
 
             if "model" in lower_path or "schema" in lower_path:
-                return "Defines application data models or schemas used for structured inputs, outputs, or persistence."
+                return "Defines structured data models or schemas used for validation, persistence, or API responses."
 
             if "config" in lower_path or "settings" in lower_path:
-                return "Contains configuration logic and environment-driven application settings."
-
-            if "test" in lower_path:
-                return "Automated test file validating functionality, edge cases, and regression safety."
+                return "Centralizes configuration logic and environment-driven settings for the application."
 
             if "api" in lower_path or "route" in lower_path:
-                return "Implements API routes or request handlers for external service interaction."
+                return "Implements API routes or request handlers that expose application functionality to external clients."
 
             if "service" in lower_path:
-                return "Contains business logic or orchestration used by higher-level application layers."
+                return "Contains service-layer business logic or orchestration used by higher-level application flows."
 
-            parts = [f"{language} source file"]
+            parts = [f"{language} implementation file"]
             if classes > 0:
                 parts.append(f"defines {classes} class{'es' if classes != 1 else ''}")
             if functions > 0:
@@ -95,22 +106,28 @@ class AnalysisService:
             if len(parts) > 1:
                 return ", ".join(parts[:-1]) + ", and " + parts[-1] + "."
 
-            return "Python source file containing implementation logic."
+            return "Python implementation file containing core application logic."
 
         if lower_path.endswith((".ts", ".tsx", ".js", ".jsx")):
-            if "component" in lower_path:
-                return "Frontend component responsible for rendering part of the user interface."
+            functions = self._count_matches(r"(function\s+\w+|const\s+\w+\s*=|export\s+default)", content)
+
+            if "component" in lower_path or lower_path.endswith(".tsx"):
+                return f"Frontend UI component responsible for rendering interactive application views or reusable interface sections."
             if "hook" in lower_path:
-                return "Reusable hook managing state, side effects, or shared frontend behavior."
+                return "Reusable frontend hook managing state, side effects, or shared UI behavior."
             if "service" in lower_path or "api" in lower_path:
-                return "Client-side service layer for API communication or integration logic."
+                return "Client-side service layer responsible for API communication and integration with backend endpoints."
+            if "type" in lower_path:
+                return "TypeScript type definitions used to keep frontend data contracts consistent."
+            if functions:
+                return f"JavaScript/TypeScript source file containing UI or application logic with about {functions} exported or local function patterns."
             return "JavaScript or TypeScript source file containing UI or application logic."
 
         if lower_path.endswith(".html"):
-            return "HTML template used to render UI structure or server-side views."
+            return "HTML template defining the base UI structure for the web application."
 
         if lower_path.endswith(".css"):
-            return "Stylesheet defining layout, theme, and visual presentation rules."
+            return "Stylesheet defining layout, theme, spacing, and visual presentation rules."
 
         return f"{language} file containing implementation or configuration details."
 
