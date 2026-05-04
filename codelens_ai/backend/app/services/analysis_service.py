@@ -121,6 +121,26 @@ class AnalysisService:
         nesting_penalty = content.count("{") + content.count(":\n")
         return min(10, max(1, math.ceil((control_flow_hits + nesting_penalty * 0.1) / 4)))
 
+    def _infer_file_role(self, path: str) -> str:
+        lower_path = path.lower()
+
+        if "test" in lower_path:
+            return "test file"
+        if "model" in lower_path or "schema" in lower_path:
+            return "data model"
+        if "util" in lower_path or "helper" in lower_path:
+            return "utility module"
+        if "api" in lower_path or "route" in lower_path:
+            return "API handler"
+        if "service" in lower_path:
+            return "service layer"
+        if "component" in lower_path:
+            return "UI component"
+        if "config" in lower_path or "settings" in lower_path:
+            return "configuration module"
+
+        return "source module"
+
     def detect_risks(self, file_records: list[dict], repo_metadata: dict) -> list[dict]:
         risks: list[dict] = []
         has_readme = any(item["path"].lower().startswith("readme") for item in file_records)
@@ -131,7 +151,7 @@ class AnalysisService:
                 {
                     "title": "Missing README",
                     "severity": "medium",
-                    "description": "The repository does not include a visible README for onboarding.",
+                    "description": "The repository does not include a visible README, which may slow down setup, onboarding, and contribution workflows.",
                     "file_path": None,
                 }
             )
@@ -141,7 +161,7 @@ class AnalysisService:
                 {
                     "title": "Missing tests",
                     "severity": "medium",
-                    "description": "No test files were detected in the analyzed subset.",
+                    "description": "No test files were detected in the analyzed subset, which increases regression risk for future changes.",
                     "file_path": None,
                 }
             )
@@ -149,6 +169,8 @@ class AnalysisService:
         for record in file_records:
             content = record["content"]
             path = record["path"]
+            file_name = path.split("/")[-1]
+            file_role = self._infer_file_role(path)
 
             for pattern, description in SECRET_PATTERNS:
                 if pattern.search(content):
@@ -156,7 +178,7 @@ class AnalysisService:
                         {
                             "title": "Potential hardcoded secret",
                             "severity": "high",
-                            "description": description,
+                            "description": f"{description} detected in `{file_name}`. Move secrets into environment variables or a secure secrets manager.",
                             "file_path": path,
                         }
                     )
@@ -168,7 +190,7 @@ class AnalysisService:
                     {
                         "title": "High TODO/FIXME density",
                         "severity": "low",
-                        "description": f"Detected {todo_count} TODO/FIXME markers, which may indicate unfinished work.",
+                        "description": f"`{file_name}` contains {todo_count} TODO/FIXME markers, which may indicate unfinished work or hidden technical debt.",
                         "file_path": path,
                     }
                 )
@@ -178,7 +200,7 @@ class AnalysisService:
                     {
                         "title": "Large source file",
                         "severity": "medium",
-                        "description": "Large files can hurt maintainability and review speed.",
+                        "description": f"`{file_name}` is relatively large for a {file_role}, which can make code review, debugging, and ownership harder.",
                         "file_path": path,
                     }
                 )
@@ -188,7 +210,7 @@ class AnalysisService:
                     {
                         "title": "High complexity file",
                         "severity": "medium",
-                        "description": "This file has high estimated branching complexity and may benefit from refactoring.",
+                        "description": f"The {file_role} `{file_name}` has a complexity score of {record['complexity_score']}/10. This may reduce readability and increase bug risk, so consider splitting logic into smaller focused functions.",
                         "file_path": path,
                     }
                 )
@@ -198,7 +220,7 @@ class AnalysisService:
                 {
                     "title": "High open issue count",
                     "severity": "low",
-                    "description": "A high issue count can indicate maintenance pressure.",
+                    "description": "A high issue count can indicate maintenance pressure, unresolved bugs, or a large backlog of improvement work.",
                     "file_path": None,
                 }
             )
