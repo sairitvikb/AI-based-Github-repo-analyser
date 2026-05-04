@@ -322,17 +322,28 @@ class AnalysisService:
         languages = Counter([record["language"] or "Unknown" for record in file_records])
         likely_stack = [language for language, _ in languages.most_common(6)]
 
+        important_records = [
+            item
+            for item in file_records
+            if not item["is_test_file"]
+            and not item["path"].lower().endswith(
+                (".md", ".yml", ".yaml", ".json", ".txt", ".lock")
+            )
+        ]
+
+        selected_records = important_records[:25] if important_records else file_records[:25]
+
         top_files = "\n".join(
-            [f"- {item['path']}: {item['summary']}" for item in file_records[:20]]
+            [f"- {item['path']}: {item['summary']}" for item in selected_records]
         )
 
         repo_name = repo_metadata.get("name", "repository")
         description = repo_metadata.get("description") or "No description provided."
 
         prompt = f"""
-You are an expert software architect.
+You are a senior software engineer performing a practical architecture review.
 
-Analyze this GitHub repository and create premium-quality summaries.
+Analyze this GitHub repository and create useful, non-redundant summaries.
 
 Repository Name:
 {repo_name}
@@ -343,7 +354,7 @@ GitHub Description:
 Likely Technologies:
 {", ".join(likely_stack)}
 
-Important Files:
+Important Implementation Files:
 {top_files}
 
 Return these 4 sections exactly in this format:
@@ -361,11 +372,16 @@ Return these 4 sections exactly in this format:
 <content>
 
 Requirements:
-- Be specific, intelligent, and realistic.
-- Do not use generic phrases like "appears modular".
-- Mention concrete technologies or layers when supported.
+- Focus on what the repository does, not just what files exist.
+- Explain the main components, responsibilities, and developer workflow.
+- Do not repeat the same files across sections.
+- Do not over-focus on README, tests, setup files, or YAML config.
+- Mention test/config files only if they are central to understanding the repo.
+- Avoid generic phrases like "appears modular", "multiple modules", or "various files".
+- Detailed Summary should explain the product/system in 3-4 useful sentences.
+- Architecture Summary should explain layers, services, entry points, and data flow.
+- Developer Onboarding Summary should give practical first steps for a new engineer.
 - Keep Concise Summary to 2 lines max.
-- Keep Detailed Summary to 4 lines max.
 - Keep Architecture Summary to 3 lines max.
 - Keep Developer Onboarding Summary to 3 lines max.
 """
@@ -380,12 +396,16 @@ Requirements:
 
             response = client.chat.completions.create(
                 model="llama-3.3-70b-versatile",
-                temperature=0.2,
-                max_tokens=700,
+                temperature=0.15,
+                max_tokens=750,
                 messages=[
                     {
                         "role": "system",
-                        "content": "You are an expert software architect. Summarize repositories clearly and concisely.",
+                        "content": (
+                            "You are a senior software engineer performing a practical "
+                            "architecture review. Avoid redundant file listing. Explain "
+                            "purpose, architecture, data flow, and onboarding steps clearly."
+                        ),
                     },
                     {
                         "role": "user",
@@ -404,11 +424,20 @@ Requirements:
             if not concise:
                 concise = f"{repo_name} is a software repository built using {', '.join(likely_stack[:3])}."
             if not detailed:
-                detailed = f"The project likely focuses on {description}. It includes multiple modules and developer workflows."
+                detailed = (
+                    f"{repo_name} focuses on {description}. The analyzed implementation files "
+                    "show the main application logic, supporting services, and developer workflow."
+                )
             if not architecture:
-                architecture = "The codebase is organized into separate modules for business logic, configuration, and interfaces."
+                architecture = (
+                    "The codebase separates implementation logic, configuration, and external interfaces. "
+                    "Developers should trace the main entry points first, then follow service-layer calls and data models."
+                )
             if not onboarding:
-                onboarding = "Start with the README, install dependencies, review entry points, and run the project locally."
+                onboarding = (
+                    "Start with the README or main entry point, install dependencies, run the project locally, "
+                    "then review the core implementation files before tests and configuration."
+                )
 
             return RepositorySummaryData(
                 concise_summary=concise,
@@ -422,9 +451,18 @@ Requirements:
             print(f"Groq summary generation failed: {exc}")
 
             concise = f"{repo_name} is a software repository built using {', '.join(likely_stack[:3])}."
-            detailed = f"The project likely focuses on {description}. It includes multiple modules and developer workflows."
-            architecture = "The codebase is organized into separate modules for business logic, configuration, and interfaces."
-            onboarding = "Start with the README, install dependencies, review entry points, and run the project locally."
+            detailed = (
+                f"{repo_name} focuses on {description}. The analyzed implementation files "
+                "show the main application logic, supporting services, and developer workflow."
+            )
+            architecture = (
+                "The codebase separates implementation logic, configuration, and external interfaces. "
+                "Developers should trace the main entry points first, then follow service-layer calls and data models."
+            )
+            onboarding = (
+                "Start with the README or main entry point, install dependencies, run the project locally, "
+                "then review the core implementation files before tests and configuration."
+            )
 
             return RepositorySummaryData(
                 concise_summary=concise,
