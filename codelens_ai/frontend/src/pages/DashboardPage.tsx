@@ -34,6 +34,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeSection, setActiveSection] = useState("overview");
+  const [selectedFilePath, setSelectedFilePath] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadDashboard() {
@@ -84,6 +85,18 @@ export default function DashboardPage() {
     });
   };
 
+  const handleRiskFileSelect = (filePath: string) => {
+    setSelectedFilePath(filePath);
+    setActiveSection("files");
+
+    setTimeout(() => {
+      document.getElementById("files")?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }, 50);
+  };
+
   if (loading) {
     return (
       <main className="relative mx-auto max-w-7xl px-6 py-16 text-slate-300">
@@ -111,7 +124,6 @@ export default function DashboardPage() {
     <main className="relative mx-auto max-w-7xl px-6 py-10">
       <div className="pointer-events-none fixed inset-0 -z-10 bg-[radial-gradient(circle_at_top_left,rgba(34,211,238,0.14),transparent_35%),radial-gradient(circle_at_top_right,rgba(99,102,241,0.14),transparent_35%)]" />
 
-      {/* Header */}
       <section className="mb-8 overflow-hidden rounded-3xl border border-slate-800 bg-slate-900/80 p-8 shadow-xl transition hover:border-cyan-400/30">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
           <div>
@@ -155,7 +167,6 @@ export default function DashboardPage() {
         </div>
       </section>
 
-      {/* Sticky Navigation */}
       <nav className="sticky top-4 z-20 mb-8 rounded-2xl border border-slate-800 bg-slate-950/80 p-2 backdrop-blur">
         <div className="flex flex-wrap gap-2">
           {[
@@ -180,34 +191,36 @@ export default function DashboardPage() {
         </div>
       </nav>
 
-      {/* Overview */}
       <section id="overview" className="scroll-mt-28">
         <SummaryCards repository={repository} summary={summary} />
       </section>
 
-      {/* Risks + Language */}
       <section id="risks" className="mt-6 grid scroll-mt-28 gap-6 xl:grid-cols-2">
         <div className="transition duration-300 hover:-translate-y-1">
           <LanguageChart languageBreakdown={repository.language_breakdown} />
         </div>
 
         <div className="transition duration-300 hover:-translate-y-1">
-          <RiskPanel risks={risks} />
+          <RiskPanel risks={risks} onFileSelect={handleRiskFileSelect} />
         </div>
       </section>
 
-      {/* Improvements */}
-      <section id="improvements" className="mt-6 scroll-mt-28 transition duration-300 hover:-translate-y-1">
+      <section
+        id="improvements"
+        className="mt-6 scroll-mt-28 transition duration-300 hover:-translate-y-1"
+      >
         <ImprovementOpportunities improvements={improvements} />
       </section>
 
-      {/* Files + Chat */}
       <section
         id="files"
         className="mt-6 grid scroll-mt-28 gap-6 xl:grid-cols-[1.1fr,0.9fr]"
       >
         <div className="transition duration-300 hover:-translate-y-1">
-          <FileInsightsPanel files={files} />
+          <FileInsightsPanel
+            files={files}
+            selectedFilePath={selectedFilePath}
+          />
         </div>
 
         <div className="transition duration-300 hover:-translate-y-1">
@@ -215,7 +228,6 @@ export default function DashboardPage() {
         </div>
       </section>
 
-      {/* Detailed Summary */}
       <section id="summary" className="mt-6 grid scroll-mt-28 gap-6 lg:grid-cols-2">
         <div className="rounded-3xl border border-slate-800 bg-slate-900/80 p-7 shadow-lg transition hover:-translate-y-1 hover:border-cyan-400/40 hover:shadow-cyan-500/10">
           <div className="mb-4 flex items-center gap-3">
