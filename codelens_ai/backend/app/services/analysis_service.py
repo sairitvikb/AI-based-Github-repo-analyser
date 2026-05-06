@@ -19,6 +19,10 @@ SECRET_PATTERNS = [
 
 
 class AnalysisService:
+    def __init__(self) -> None:
+        self.ai_calls = 0
+        self.max_ai_calls = 10
+
     def summarize_file(self, path: str, content: str) -> str:
         language = infer_language_from_path(path) or "text"
         lower_path = path.lower()
@@ -29,81 +33,85 @@ class AnalysisService:
 
         filename = lower_path.split("/")[-1]
 
-        if self._should_use_ai_file_summary(lower_path, content):
+        if self._should_use_ai_file_summary(lower_path, content) and self.ai_calls < self.max_ai_calls:
+            self.ai_calls += 1
             ai_summary = self._generate_ai_file_summary(path, content)
             if ai_summary:
                 return ai_summary
 
+        return self._fast_file_summary(path, content, language)
+
+    def _fast_file_summary(self, path: str, content: str, language: str) -> str:
+        lower_path = path.lower()
+        filename = lower_path.split("/")[-1]
+        lines = [line.strip() for line in content.splitlines() if line.strip()]
+
         if filename == "readme.md":
-            return (
-                "Primary project documentation explaining the repository purpose, setup flow, "
-                "usage instructions, and important developer entry points."
-            )
+            return "Primary project documentation explaining purpose, setup, usage, and developer entry points."
 
         if lower_path.endswith(".md"):
             heading = next((line.lstrip("# ").strip() for line in lines if line.startswith("#")), "")
             if heading:
-                return f"Documentation focused on {heading}, useful for setup, onboarding, or technical reference."
-            return "Markdown documentation used for onboarding, setup instructions, or technical reference."
+                return f"Documentation focused on {heading}, helping developers understand setup, usage, or project decisions."
+            return "Markdown documentation used for setup, onboarding, or technical reference."
 
         if lower_path.endswith(("docker-compose.yml", "docker-compose.yaml")):
-            return "Docker Compose configuration defining local services, dependencies, and development startup flow."
+            return "Docker Compose configuration that defines local services, dependencies, and development startup flow."
 
         if lower_path.endswith((".yml", ".yaml")):
             if ".github/workflows/" in lower_path:
-                return "CI/CD workflow that automates testing, builds, linting, or deployment checks."
+                return "CI/CD workflow that automates testing, linting, builds, or deployment checks."
             return "YAML configuration used for automation, environment settings, or build tooling."
 
         if lower_path.endswith(".json"):
             if "package.json" in lower_path:
-                return "JavaScript package manifest defining dependencies, scripts, and tooling for the application."
+                return "JavaScript package manifest defining dependencies, scripts, and project tooling."
             return "JSON configuration or metadata file storing structured project settings."
 
         if lower_path.endswith(".py"):
-            imports = self._extract_imports(content)
             functions = self._count_matches(r"^\s*(async\s+def|def)\s+\w+", content)
             classes = self._count_matches(r"^\s*class\s+\w+", content)
+            imports = self._extract_imports(content)
 
             if "__init__.py" in lower_path:
-                return "Package initializer that organizes module exports and makes this directory importable."
+                return "Package initializer that organizes module exports and makes the directory importable."
 
             if "test" in lower_path:
                 tested_area = filename.replace("test_", "").replace("_test", "").replace(".py", "")
                 tested_area = tested_area.replace("_", " ").strip() or "core functionality"
-
                 return (
-                    f"Automated test file validating {tested_area}. It helps protect the codebase from regressions "
-                    f"by checking expected behavior, edge cases, and failure scenarios."
+                    f"Automated test file validating {tested_area}. It protects the codebase from regressions by checking "
+                    f"expected behavior, edge cases, and failure paths."
                 )
 
             if "exception" in lower_path:
-                return "Defines custom exception types so error handling stays consistent and easier to trace across the backend."
+                return "Defines custom exception types so backend error handling stays consistent and easier to trace."
 
             if "parser" in lower_path:
-                return "Converts raw input into structured internal data so later application logic can work with predictable objects."
+                return "Parses raw input into structured internal data so later application logic can work with predictable objects."
 
             if "model" in lower_path or "schema" in lower_path:
-                return "Defines data contracts used for validation, persistence, or API responses, helping keep data flow consistent."
+                return "Defines data contracts used for validation, persistence, or API responses, keeping data flow consistent."
 
             if "config" in lower_path or "settings" in lower_path:
-                return "Centralizes environment-driven settings so deployment behavior and local configuration stay manageable."
+                return "Centralizes environment-driven configuration so local and deployed behavior can be managed safely."
 
             if "api" in lower_path or "route" in lower_path:
-                return "Defines API routes or request handlers that connect external client requests to backend application logic."
+                return "Defines API handlers that connect external client requests to backend service logic and responses."
 
             if "service" in lower_path:
-                return "Implements service-layer logic that coordinates business rules, data access, and higher-level application workflows."
+                return "Implements service-layer orchestration that coordinates business rules, data access, and application workflows."
 
-            parts = [f"{language} implementation file"]
-            if classes > 0:
-                parts.append(f"defines {classes} class{'es' if classes != 1 else ''}")
-            if functions > 0:
-                parts.append(f"includes {functions} function{'s' if functions != 1 else ''}")
+            details = []
+            if classes:
+                details.append(f"{classes} class{'es' if classes != 1 else ''}")
+            if functions:
+                details.append(f"{functions} function{'s' if functions != 1 else ''}")
             if imports:
-                parts.append(f"uses modules such as {', '.join(imports[:4])}")
+                details.append(f"dependencies like {', '.join(imports[:3])}")
 
-            if len(parts) > 1:
-                return ", ".join(parts[:-1]) + ", and " + parts[-1] + "."
+            if details:
+                return f"{filename} is a Python module with {', '.join(details)}, supporting core application behavior."
 
             return "Python source file containing application logic used by the repository."
 
@@ -114,7 +122,7 @@ class AnalysisService:
             )
 
             if "component" in lower_path or lower_path.endswith(".tsx"):
-                return "Frontend component responsible for rendering a specific user-facing screen or reusable UI section."
+                return "Frontend component that renders a user-facing screen or reusable interface section."
             if "hook" in lower_path:
                 return "Reusable frontend hook that manages shared state, side effects, or UI behavior."
             if "service" in lower_path or "api" in lower_path:
@@ -122,7 +130,7 @@ class AnalysisService:
             if "type" in lower_path:
                 return "TypeScript type definition file that keeps frontend data contracts predictable and safer to change."
             if functions:
-                return f"JavaScript/TypeScript source file with about {functions} function patterns used for UI or app behavior."
+                return f"JavaScript/TypeScript source file with about {functions} function patterns used for UI or application behavior."
             return "JavaScript or TypeScript source file containing frontend or application logic."
 
         if lower_path.endswith(".html"):
@@ -137,7 +145,7 @@ class AnalysisService:
         if not settings.groq_api_key:
             return False
 
-        if len(content.strip()) < 250:
+        if len(content.strip()) < 500:
             return False
 
         ignored_extensions = (
@@ -154,7 +162,29 @@ class AnalysisService:
         if lower_path.endswith(ignored_extensions):
             return False
 
-        return lower_path.endswith((".py", ".ts", ".tsx", ".js", ".jsx"))
+        if "test" in lower_path:
+            return False
+
+        if "util" in lower_path or "helper" in lower_path:
+            return False
+
+        important_keywords = [
+            "service",
+            "api",
+            "route",
+            "model",
+            "schema",
+            "core",
+            "main",
+            "repository",
+            "dashboard",
+            "chat",
+            "analysis",
+        ]
+
+        return lower_path.endswith((".py", ".ts", ".tsx", ".js", ".jsx")) and any(
+            keyword in lower_path for keyword in important_keywords
+        )
 
     def _generate_ai_file_summary(self, path: str, content: str) -> str:
         try:
@@ -164,7 +194,7 @@ class AnalysisService:
                 return ""
 
             client = Groq(api_key=settings.groq_api_key)
-            snippet = content[:4500]
+            snippet = content[:2500]
 
             prompt = f"""
 You are a senior software engineer reviewing one source file from a GitHub repository.
@@ -185,7 +215,7 @@ Rules:
 - Be specific to the file path and code.
 - Do not say generic phrases like "contains logic", "handles functionality", or "implementation file".
 - Do not simply count functions/classes/imports.
-- Mention the responsibility, system role, or data flow when possible.
+- Mention responsibility, system role, data flow, or user impact when possible.
 - Keep it under 80 words.
 - No markdown bullets.
 """
@@ -198,8 +228,8 @@ Rules:
                     {
                         "role": "system",
                         "content": (
-                            "You explain source files like a senior engineer. "
-                            "Focus on purpose, responsibility, system role, and practical importance."
+                            "You explain source files like a senior engineer. Focus on purpose, responsibility, "
+                            "system role, and practical importance."
                         ),
                     },
                     {"role": "user", "content": prompt},
@@ -218,8 +248,17 @@ Rules:
             re.findall(r"\b(if|for|while|switch|case|except|catch|elif|try)\b", content)
         )
         nesting_penalty = content.count("{") + content.count(":\n")
-        function_count = len(re.findall(r"^\s*(async\s+def|def|function)\s+\w+", content, re.MULTILINE))
-        return min(10, max(1, math.ceil((control_flow_hits + nesting_penalty * 0.1 + function_count * 0.25) / 4)))
+        function_count = len(
+            re.findall(r"^\s*(async\s+def|def|function)\s+\w+", content, re.MULTILINE)
+        )
+
+        return min(
+            10,
+            max(
+                1,
+                math.ceil((control_flow_hits + nesting_penalty * 0.1 + function_count * 0.25) / 4),
+            ),
+        )
 
     def _infer_file_role(self, path: str) -> str:
         lower_path = path.lower()
@@ -275,26 +314,25 @@ Rules:
         if "test" in lower_path:
             return (
                 f"`{file_name}` has a complexity score of {complexity_score}/10. "
-                f"Technical signals: {signal_text}. As a test file, this can make failures harder to debug "
-                f"because setup, mock data, execution, and assertions may be mixed together. "
-                f"Refactor by moving reusable setup into pytest fixtures, separating assertion helpers, "
-                f"and keeping each test focused on one behavior."
+                f"Technical signals: {signal_text}. As a test file, this can make failures harder to debug because setup, "
+                f"mock data, execution, and assertions may be mixed together. Refactor by moving reusable setup into fixtures, "
+                f"separating assertion helpers, and keeping each test focused on one behavior."
             )
 
         if "model" in lower_path or "schema" in lower_path:
             return (
                 f"`{file_name}` has a complexity score of {complexity_score}/10. "
-                f"Technical signals: {signal_text}. As a data model, this may tightly couple schemas, validation, "
-                f"and transformation rules, causing ripple effects when API or database structures change. "
-                f"Split persistence models, request/response schemas, and validation helpers into clearer modules."
+                f"Technical signals: {signal_text}. As a data model, this may tightly couple schemas, validation, and "
+                f"transformation rules, causing ripple effects when API or database structures change. Split persistence models, "
+                f"request/response schemas, and validation helpers into clearer modules."
             )
 
         if "service" in lower_path:
             return (
                 f"`{file_name}` has a complexity score of {complexity_score}/10. "
-                f"Technical signals: {signal_text}. As a service layer file, this likely concentrates business rules "
-                f"and orchestration in one place, making feature changes riskier. "
-                f"Extract decision-heavy logic into smaller helper functions or policy-style modules with focused tests."
+                f"Technical signals: {signal_text}. As a service layer file, this likely concentrates business rules and "
+                f"orchestration in one place, making feature changes riskier. Extract decision-heavy logic into smaller helpers "
+                f"or policy-style modules with focused tests."
             )
 
         if "util" in lower_path or "helper" in lower_path:
@@ -315,9 +353,9 @@ Rules:
 
         return (
             f"`{file_name}` has a complexity score of {complexity_score}/10. "
-            f"Technical signals: {signal_text}. As a {role}, this increases cognitive load, slows code review, "
-            f"and raises the chance of unintended side effects. Refactor by splitting responsibilities, naming smaller units clearly, "
-            f"and adding regression tests before restructuring."
+            f"Technical signals: {signal_text}. As a {role}, this increases cognitive load, slows code review, and raises the "
+            f"chance of unintended side effects. Refactor by splitting responsibilities, naming smaller units clearly, and adding "
+            f"regression tests before restructuring."
         )
 
     def detect_risks(self, file_records: list[dict], repo_metadata: dict) -> list[dict]:
@@ -332,8 +370,8 @@ Rules:
                     "title": "Missing README",
                     "severity": "medium",
                     "description": (
-                        "The repository does not include a visible README. This slows onboarding because new developers "
-                        "do not have a clear setup path, usage example, or explanation of the main entry points."
+                        "The repository does not include a visible README. This slows onboarding because new developers do not "
+                        "have a clear setup path, usage example, or explanation of the main entry points."
                     ),
                     "file_path": None,
                 }
@@ -345,8 +383,8 @@ Rules:
                     "title": "Missing test coverage",
                     "severity": "medium",
                     "description": (
-                        "No test files were detected in the analyzed subset. This increases regression risk because future "
-                        "changes cannot be validated automatically across core workflows."
+                        "No test files were detected in the analyzed subset. This increases regression risk because future changes "
+                        "cannot be validated automatically across core workflows."
                     ),
                     "file_path": None,
                 }
@@ -366,8 +404,8 @@ Rules:
                             "severity": "high",
                             "description": (
                                 f"{description} detected in `{file_name}`. Secrets committed to source code can leak through "
-                                f"Git history, logs, forks, or screenshots. Move the value into environment variables or a "
-                                f"secret manager and rotate the exposed credential."
+                                f"Git history, logs, forks, or screenshots. Move the value into environment variables or a secret "
+                                f"manager and rotate the exposed credential."
                             ),
                             "file_path": path,
                         }
@@ -381,9 +419,9 @@ Rules:
                         "title": "Accumulated technical debt",
                         "severity": "low",
                         "description": (
-                            f"`{file_name}` contains {todo_count} TODO/FIXME/HACK markers. This suggests deferred decisions "
-                            f"or incomplete implementation details that should be converted into tracked issues or cleaned up "
-                            f"before the file becomes harder to maintain."
+                            f"`{file_name}` contains {todo_count} TODO/FIXME/HACK markers. This suggests deferred decisions or "
+                            f"incomplete implementation details that should be converted into tracked issues or cleaned up before "
+                            f"the file becomes harder to maintain."
                         ),
                         "file_path": path,
                     }
@@ -395,9 +433,9 @@ Rules:
                         "title": "Oversized file",
                         "severity": "medium",
                         "description": (
-                            f"`{file_name}` is large for a {file_role}. Large files often mix multiple responsibilities, "
-                            f"which makes review slower, debugging harder, and ownership less clear. Split the file around "
-                            f"clear responsibilities or feature boundaries."
+                            f"`{file_name}` is large for a {file_role}. Large files often mix multiple responsibilities, which makes "
+                            f"review slower, debugging harder, and ownership less clear. Split the file around clear responsibilities "
+                            f"or feature boundaries."
                         ),
                         "file_path": path,
                     }
@@ -457,9 +495,7 @@ Rules:
                     "title": "Add automated regression coverage",
                     "category": "Testing",
                     "priority": "High",
-                    "description": (
-                        "Add unit and integration tests around the most important workflows before adding more features."
-                    ),
+                    "description": "Add unit and integration tests around the most important workflows before adding more features.",
                     "rationale": (
                         "No strong test presence was detected, so future changes have a higher chance of breaking existing behavior silently."
                     ),
@@ -475,9 +511,7 @@ Rules:
                     "description": (
                         "Add a README with project purpose, setup steps, required environment variables, run commands, and example usage."
                     ),
-                    "rationale": (
-                        "Clear onboarding docs reduce setup friction and make the repository easier for new engineers to evaluate."
-                    ),
+                    "rationale": "Clear onboarding docs reduce setup friction and make the repository easier for new engineers to evaluate.",
                 }
             )
 
@@ -487,12 +521,8 @@ Rules:
                     "title": "Add continuous integration checks",
                     "category": "Developer Experience",
                     "priority": "Medium",
-                    "description": (
-                        "Create a CI workflow that runs tests, linting, and basic build validation on every pull request."
-                    ),
-                    "rationale": (
-                        "Automated validation catches regressions earlier and gives reviewers more confidence in changes."
-                    ),
+                    "description": "Create a CI workflow that runs tests, linting, and basic build validation on every pull request.",
+                    "rationale": "Automated validation catches regressions earlier and gives reviewers more confidence in changes.",
                 }
             )
 
@@ -502,9 +532,7 @@ Rules:
                     "title": "Split oversized files by responsibility",
                     "category": "Maintainability",
                     "priority": "Medium",
-                    "description": (
-                        "Break large files into smaller modules organized around features, domain responsibilities, or clear layers."
-                    ),
+                    "description": "Break large files into smaller modules organized around features, domain responsibilities, or clear layers.",
                     "rationale": (
                         f"{len(large_files)} large file(s) were detected. Smaller files are easier to review, test, and safely modify."
                     ),
@@ -534,12 +562,8 @@ Rules:
                     "title": "Convert TODO/FIXME markers into tracked work",
                     "category": "Code Quality",
                     "priority": "Low",
-                    "description": (
-                        "Review TODO/FIXME/HACK markers and either resolve them or convert them into visible backlog items."
-                    ),
-                    "rationale": (
-                        f"{len(todo_heavy_files)} file(s) contain a high density of unfinished-work markers."
-                    ),
+                    "description": "Review TODO/FIXME/HACK markers and either resolve them or convert them into visible backlog items.",
+                    "rationale": f"{len(todo_heavy_files)} file(s) contain a high density of unfinished-work markers.",
                 }
             )
 
@@ -549,12 +573,8 @@ Rules:
                     "title": "Review maintenance backlog",
                     "category": "Project Health",
                     "priority": "Low",
-                    "description": (
-                        "Audit open issues, identify repeated failure themes, and prioritize high-impact cleanup work."
-                    ),
-                    "rationale": (
-                        "A high open issue count can indicate maintenance pressure or unresolved technical debt."
-                    ),
+                    "description": "Audit open issues, identify repeated failure themes, and prioritize high-impact cleanup work.",
+                    "rationale": "A high open issue count can indicate maintenance pressure or unresolved technical debt.",
                 }
             )
 
@@ -564,12 +584,8 @@ Rules:
                     "title": "Add architecture documentation",
                     "category": "Scalability",
                     "priority": "Medium",
-                    "description": (
-                        "Document main modules, entry points, request/data flow, and ownership boundaries."
-                    ),
-                    "rationale": (
-                        "Larger repositories are easier to onboard into when system structure is explained explicitly."
-                    ),
+                    "description": "Document main modules, entry points, request/data flow, and ownership boundaries.",
+                    "rationale": "Larger repositories are easier to onboard into when system structure is explained explicitly.",
                 }
             )
 
@@ -580,6 +596,8 @@ Rules:
         repo_metadata: dict,
         file_records: list[dict],
     ) -> RepositorySummaryData:
+        self.ai_calls = 0
+
         languages = Counter([record["language"] or "Unknown" for record in file_records])
         likely_stack = [language for language, _ in languages.most_common(6)]
 
@@ -663,9 +681,8 @@ Requirements:
                     {
                         "role": "system",
                         "content": (
-                            "You are a senior software engineer performing a practical "
-                            "architecture review. Avoid redundant file listing. Explain "
-                            "purpose, architecture, data flow, and onboarding steps clearly."
+                            "You are a senior software engineer performing a practical architecture review. "
+                            "Avoid redundant file listing. Explain purpose, architecture, data flow, and onboarding steps clearly."
                         ),
                     },
                     {"role": "user", "content": prompt},
@@ -683,8 +700,8 @@ Requirements:
                 concise = f"{repo_name} is a software repository built using {', '.join(likely_stack[:3])}."
             if not detailed:
                 detailed = (
-                    f"{repo_name} focuses on {description}. The analyzed implementation files "
-                    "show the main application logic, supporting services, and developer workflow."
+                    f"{repo_name} focuses on {description}. The analyzed implementation files show the main application logic, "
+                    f"supporting services, and developer workflow."
                 )
             if not architecture:
                 architecture = (
@@ -693,8 +710,8 @@ Requirements:
                 )
             if not onboarding:
                 onboarding = (
-                    "Start with the README or main entry point, install dependencies, run the project locally, "
-                    "then review the core implementation files before tests and configuration."
+                    "Start with the README or main entry point, install dependencies, run the project locally, then review the core "
+                    "implementation files before tests and configuration."
                 )
 
             return RepositorySummaryData(
@@ -710,16 +727,16 @@ Requirements:
 
             concise = f"{repo_name} is a software repository built using {', '.join(likely_stack[:3])}."
             detailed = (
-                f"{repo_name} focuses on {description}. The analyzed implementation files "
-                "show the main application logic, supporting services, and developer workflow."
+                f"{repo_name} focuses on {description}. The analyzed implementation files show the main application logic, "
+                f"supporting services, and developer workflow."
             )
             architecture = (
-                "The codebase separates implementation logic, configuration, and external interfaces. "
-                "Developers should trace the main entry points first, then follow service-layer calls and data models."
+                "The codebase separates implementation logic, configuration, and external interfaces. Developers should trace the "
+                "main entry points first, then follow service-layer calls and data models."
             )
             onboarding = (
-                "Start with the README or main entry point, install dependencies, run the project locally, "
-                "then review the core implementation files before tests and configuration."
+                "Start with the README or main entry point, install dependencies, run the project locally, then review the core "
+                "implementation files before tests and configuration."
             )
 
             return RepositorySummaryData(
