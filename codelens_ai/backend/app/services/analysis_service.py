@@ -29,32 +29,34 @@ class AnalysisService:
 
         filename = lower_path.split("/")[-1]
 
-        # AI-powered summaries for important code files
         if self._should_use_ai_file_summary(lower_path, content):
             ai_summary = self._generate_ai_file_summary(path, content)
             if ai_summary:
                 return ai_summary
 
         if filename == "readme.md":
-            return "Top-level README describing the repository purpose, setup flow, usage instructions, and main developer entry points."
+            return (
+                "Primary project documentation explaining the repository purpose, setup flow, "
+                "usage instructions, and important developer entry points."
+            )
 
         if lower_path.endswith(".md"):
             heading = next((line.lstrip("# ").strip() for line in lines if line.startswith("#")), "")
             if heading:
-                return f"Documentation focused on {heading}, useful for setup, onboarding, or developer reference."
+                return f"Documentation focused on {heading}, useful for setup, onboarding, or technical reference."
             return "Markdown documentation used for onboarding, setup instructions, or technical reference."
 
         if lower_path.endswith(("docker-compose.yml", "docker-compose.yaml")):
-            return "Docker Compose configuration defining local services, dependencies, and development environment startup."
+            return "Docker Compose configuration defining local services, dependencies, and development startup flow."
 
         if lower_path.endswith((".yml", ".yaml")):
             if ".github/workflows/" in lower_path:
-                return "CI/CD workflow used for automated testing, linting, builds, or deployment."
+                return "CI/CD workflow that automates testing, builds, linting, or deployment checks."
             return "YAML configuration used for automation, environment settings, or build tooling."
 
         if lower_path.endswith(".json"):
             if "package.json" in lower_path:
-                return "JavaScript package manifest defining dependencies, scripts, and frontend/backend tooling metadata."
+                return "JavaScript package manifest defining dependencies, scripts, and tooling for the application."
             return "JSON configuration or metadata file storing structured project settings."
 
         if lower_path.endswith(".py"):
@@ -69,37 +71,28 @@ class AnalysisService:
                 tested_area = filename.replace("test_", "").replace("_test", "").replace(".py", "")
                 tested_area = tested_area.replace("_", " ").strip() or "core functionality"
 
-                details = []
-                if functions:
-                    details.append(f"{functions} test/helper function{'s' if functions != 1 else ''}")
-                if classes:
-                    details.append(f"{classes} test class{'es' if classes != 1 else ''}")
-                if imports:
-                    details.append(f"dependencies such as {', '.join(imports[:3])}")
-
-                extra = f" It includes {', '.join(details)}." if details else ""
                 return (
-                    f"Automated test suite focused on {tested_area}, validating expected behavior, "
-                    f"edge cases, and regression safety for that part of the codebase.{extra}"
+                    f"Automated test file validating {tested_area}. It helps protect the codebase from regressions "
+                    f"by checking expected behavior, edge cases, and failure scenarios."
                 )
 
             if "exception" in lower_path:
-                return "Defines custom exception classes used to keep error handling consistent across the module."
+                return "Defines custom exception types so error handling stays consistent and easier to trace across the backend."
 
             if "parser" in lower_path:
-                return "Implements parsing logic that converts raw input into validated internal structures."
+                return "Converts raw input into structured internal data so later application logic can work with predictable objects."
 
             if "model" in lower_path or "schema" in lower_path:
-                return "Defines structured data models or schemas used for validation, persistence, or API responses."
+                return "Defines data contracts used for validation, persistence, or API responses, helping keep data flow consistent."
 
             if "config" in lower_path or "settings" in lower_path:
-                return "Centralizes configuration logic and environment-driven settings for the application."
+                return "Centralizes environment-driven settings so deployment behavior and local configuration stay manageable."
 
             if "api" in lower_path or "route" in lower_path:
-                return "Implements API routes or request handlers that expose application functionality to external clients."
+                return "Defines API routes or request handlers that connect external client requests to backend application logic."
 
             if "service" in lower_path:
-                return "Contains service-layer business logic or orchestration used by higher-level application flows."
+                return "Implements service-layer logic that coordinates business rules, data access, and higher-level application workflows."
 
             parts = [f"{language} implementation file"]
             if classes > 0:
@@ -112,7 +105,7 @@ class AnalysisService:
             if len(parts) > 1:
                 return ", ".join(parts[:-1]) + ", and " + parts[-1] + "."
 
-            return "Python implementation file containing core application logic."
+            return "Python source file containing application logic used by the repository."
 
         if lower_path.endswith((".ts", ".tsx", ".js", ".jsx")):
             functions = self._count_matches(
@@ -121,22 +114,22 @@ class AnalysisService:
             )
 
             if "component" in lower_path or lower_path.endswith(".tsx"):
-                return "Frontend UI component responsible for rendering interactive application views or reusable interface sections."
+                return "Frontend component responsible for rendering a specific user-facing screen or reusable UI section."
             if "hook" in lower_path:
-                return "Reusable frontend hook managing state, side effects, or shared UI behavior."
+                return "Reusable frontend hook that manages shared state, side effects, or UI behavior."
             if "service" in lower_path or "api" in lower_path:
-                return "Client-side service layer responsible for API communication and integration with backend endpoints."
+                return "Client-side service layer that communicates with backend APIs and keeps network logic separate from UI code."
             if "type" in lower_path:
-                return "TypeScript type definitions used to keep frontend data contracts consistent."
+                return "TypeScript type definition file that keeps frontend data contracts predictable and safer to change."
             if functions:
-                return f"JavaScript/TypeScript source file containing UI or application logic with about {functions} exported or local function patterns."
-            return "JavaScript or TypeScript source file containing UI or application logic."
+                return f"JavaScript/TypeScript source file with about {functions} function patterns used for UI or app behavior."
+            return "JavaScript or TypeScript source file containing frontend or application logic."
 
         if lower_path.endswith(".html"):
-            return "HTML template defining the base UI structure for the web application."
+            return "HTML template defining the base structure used to mount or render the web application."
 
         if lower_path.endswith(".css"):
-            return "Stylesheet defining layout, theme, spacing, and visual presentation rules."
+            return "Stylesheet controlling layout, spacing, colors, and visual presentation."
 
         return f"{language} file containing implementation or configuration details."
 
@@ -161,10 +154,6 @@ class AnalysisService:
         if lower_path.endswith(ignored_extensions):
             return False
 
-        # Skip most test files so they stay fast and predictable
-        if lower_path.startswith("tests/") or "/tests/" in lower_path:
-            return False
-
         return lower_path.endswith((".py", ".ts", ".tsx", ".js", ".jsx"))
 
     def _generate_ai_file_summary(self, path: str, content: str) -> str:
@@ -175,11 +164,10 @@ class AnalysisService:
                 return ""
 
             client = Groq(api_key=settings.groq_api_key)
-
-            snippet = content[:3500]
+            snippet = content[:4500]
 
             prompt = f"""
-You are a senior software engineer reviewing one file from a GitHub repository.
+You are a senior software engineer reviewing one source file from a GitHub repository.
 
 File path:
 {path}
@@ -187,36 +175,34 @@ File path:
 File content:
 {snippet}
 
-Write a useful file insight in 2 short sentences.
+Write one useful file insight in 2 short sentences.
 
 Explain:
-- What this file actually does
-- Why it matters in the repository
+1. What this file actually does
+2. Why it matters in the system
 
 Rules:
-- Do not count functions, classes, or imports.
-- Do not say generic phrases like "contains logic" or "implementation file".
-- Be specific and practical.
-- Do not use markdown bullets.
-- Keep it under 70 words.
+- Be specific to the file path and code.
+- Do not say generic phrases like "contains logic", "handles functionality", or "implementation file".
+- Do not simply count functions/classes/imports.
+- Mention the responsibility, system role, or data flow when possible.
+- Keep it under 80 words.
+- No markdown bullets.
 """
 
             response = client.chat.completions.create(
                 model="llama-3.3-70b-versatile",
                 temperature=0.2,
-                max_tokens=140,
+                max_tokens=160,
                 messages=[
                     {
                         "role": "system",
                         "content": (
                             "You explain source files like a senior engineer. "
-                            "Focus on purpose, responsibility, and system role."
+                            "Focus on purpose, responsibility, system role, and practical importance."
                         ),
                     },
-                    {
-                        "role": "user",
-                        "content": prompt,
-                    },
+                    {"role": "user", "content": prompt},
                 ],
             )
 
@@ -229,10 +215,11 @@ Rules:
 
     def estimate_complexity(self, content: str) -> int:
         control_flow_hits = len(
-            re.findall(r"\b(if|for|while|switch|case|except|catch|elif)\b", content)
+            re.findall(r"\b(if|for|while|switch|case|except|catch|elif|try)\b", content)
         )
         nesting_penalty = content.count("{") + content.count(":\n")
-        return min(10, max(1, math.ceil((control_flow_hits + nesting_penalty * 0.1) / 4)))
+        function_count = len(re.findall(r"^\s*(async\s+def|def|function)\s+\w+", content, re.MULTILINE))
+        return min(10, max(1, math.ceil((control_flow_hits + nesting_penalty * 0.1 + function_count * 0.25) / 4)))
 
     def _infer_file_role(self, path: str) -> str:
         lower_path = path.lower()
@@ -247,15 +234,95 @@ Rules:
             return "API handler"
         if "service" in lower_path:
             return "service layer"
-        if "component" in lower_path:
+        if "component" in lower_path or lower_path.endswith(".tsx"):
             return "UI component"
         if "config" in lower_path or "settings" in lower_path:
             return "configuration module"
 
         return "source module"
 
+    def _build_complexity_description(
+        self,
+        path: str,
+        content: str,
+        complexity_score: int,
+    ) -> str:
+        file_name = path.split("/")[-1]
+        role = self._infer_file_role(path)
+        lower_path = path.lower()
+
+        function_count = len(re.findall(r"^\s*(async\s+def|def)\s+\w+", content, re.MULTILINE))
+        class_count = len(re.findall(r"^\s*class\s+\w+", content, re.MULTILINE))
+        branch_count = len(re.findall(r"\b(if|for|while|elif|case|except|catch|try)\b", content))
+        import_count = len(self._extract_imports(content))
+
+        signals = []
+
+        if function_count >= 8:
+            signals.append(f"{function_count} functions suggest several behaviors are grouped together")
+        if class_count >= 3:
+            signals.append(f"{class_count} classes increase the responsibility scope")
+        if branch_count >= 15:
+            signals.append(f"{branch_count} branching points make edge cases harder to trace")
+        if import_count >= 8:
+            signals.append(f"{import_count} dependencies indicate broad coupling")
+
+        if not signals:
+            signals.append("multiple decision paths are concentrated in one file")
+
+        signal_text = "; ".join(signals[:3])
+
+        if "test" in lower_path:
+            return (
+                f"`{file_name}` has a complexity score of {complexity_score}/10. "
+                f"Technical signals: {signal_text}. As a test file, this can make failures harder to debug "
+                f"because setup, mock data, execution, and assertions may be mixed together. "
+                f"Refactor by moving reusable setup into pytest fixtures, separating assertion helpers, "
+                f"and keeping each test focused on one behavior."
+            )
+
+        if "model" in lower_path or "schema" in lower_path:
+            return (
+                f"`{file_name}` has a complexity score of {complexity_score}/10. "
+                f"Technical signals: {signal_text}. As a data model, this may tightly couple schemas, validation, "
+                f"and transformation rules, causing ripple effects when API or database structures change. "
+                f"Split persistence models, request/response schemas, and validation helpers into clearer modules."
+            )
+
+        if "service" in lower_path:
+            return (
+                f"`{file_name}` has a complexity score of {complexity_score}/10. "
+                f"Technical signals: {signal_text}. As a service layer file, this likely concentrates business rules "
+                f"and orchestration in one place, making feature changes riskier. "
+                f"Extract decision-heavy logic into smaller helper functions or policy-style modules with focused tests."
+            )
+
+        if "util" in lower_path or "helper" in lower_path:
+            return (
+                f"`{file_name}` has a complexity score of {complexity_score}/10. "
+                f"Technical signals: {signal_text}. Utility modules can become hidden dependency hubs when unrelated helpers "
+                f"are grouped together. Split helpers by responsibility and move domain-specific helpers closer to the feature "
+                f"that owns them."
+            )
+
+        if "api" in lower_path or "route" in lower_path:
+            return (
+                f"`{file_name}` has a complexity score of {complexity_score}/10. "
+                f"Technical signals: {signal_text}. API handlers should stay thin, but this file may be mixing request handling, "
+                f"validation, business rules, and response formatting. Move core logic into services and keep route handlers focused "
+                f"on input/output boundaries."
+            )
+
+        return (
+            f"`{file_name}` has a complexity score of {complexity_score}/10. "
+            f"Technical signals: {signal_text}. As a {role}, this increases cognitive load, slows code review, "
+            f"and raises the chance of unintended side effects. Refactor by splitting responsibilities, naming smaller units clearly, "
+            f"and adding regression tests before restructuring."
+        )
+
     def detect_risks(self, file_records: list[dict], repo_metadata: dict) -> list[dict]:
         risks: list[dict] = []
+
         has_readme = any(item["path"].lower().startswith("readme") for item in file_records)
         has_tests = any(item["is_test_file"] for item in file_records)
 
@@ -264,7 +331,10 @@ Rules:
                 {
                     "title": "Missing README",
                     "severity": "medium",
-                    "description": "The repository does not include a visible README, which may slow down setup, onboarding, and contribution workflows.",
+                    "description": (
+                        "The repository does not include a visible README. This slows onboarding because new developers "
+                        "do not have a clear setup path, usage example, or explanation of the main entry points."
+                    ),
                     "file_path": None,
                 }
             )
@@ -272,9 +342,12 @@ Rules:
         if not has_tests:
             risks.append(
                 {
-                    "title": "Missing tests",
+                    "title": "Missing test coverage",
                     "severity": "medium",
-                    "description": "No test files were detected in the analyzed subset, which increases regression risk for future changes.",
+                    "description": (
+                        "No test files were detected in the analyzed subset. This increases regression risk because future "
+                        "changes cannot be validated automatically across core workflows."
+                    ),
                     "file_path": None,
                 }
             )
@@ -291,7 +364,11 @@ Rules:
                         {
                             "title": "Potential hardcoded secret",
                             "severity": "high",
-                            "description": f"{description} detected in `{file_name}`. Move secrets into environment variables or a secure secrets manager.",
+                            "description": (
+                                f"{description} detected in `{file_name}`. Secrets committed to source code can leak through "
+                                f"Git history, logs, forks, or screenshots. Move the value into environment variables or a "
+                                f"secret manager and rotate the exposed credential."
+                            ),
                             "file_path": path,
                         }
                     )
@@ -301,9 +378,13 @@ Rules:
             if todo_count >= 5:
                 risks.append(
                     {
-                        "title": "High TODO/FIXME density",
+                        "title": "Accumulated technical debt",
                         "severity": "low",
-                        "description": f"`{file_name}` contains {todo_count} TODO/FIXME markers, which may indicate unfinished work or hidden technical debt.",
+                        "description": (
+                            f"`{file_name}` contains {todo_count} TODO/FIXME/HACK markers. This suggests deferred decisions "
+                            f"or incomplete implementation details that should be converted into tracked issues or cleaned up "
+                            f"before the file becomes harder to maintain."
+                        ),
                         "file_path": path,
                     }
                 )
@@ -311,9 +392,13 @@ Rules:
             if record["size"] > settings.max_file_bytes * 0.85:
                 risks.append(
                     {
-                        "title": "Large source file",
+                        "title": "Oversized file",
                         "severity": "medium",
-                        "description": f"`{file_name}` is relatively large for a {file_role}, which can make code review, debugging, and ownership harder.",
+                        "description": (
+                            f"`{file_name}` is large for a {file_role}. Large files often mix multiple responsibilities, "
+                            f"which makes review slower, debugging harder, and ownership less clear. Split the file around "
+                            f"clear responsibilities or feature boundaries."
+                        ),
                         "file_path": path,
                     }
                 )
@@ -321,9 +406,13 @@ Rules:
             if record["complexity_score"] >= 8:
                 risks.append(
                     {
-                        "title": "High complexity file",
+                        "title": "High complexity architecture",
                         "severity": "medium",
-                        "description": f"The {file_role} `{file_name}` has a complexity score of {record['complexity_score']}/10. This may reduce readability and increase bug risk, so consider splitting logic into smaller focused functions.",
+                        "description": self._build_complexity_description(
+                            path=path,
+                            content=content,
+                            complexity_score=record["complexity_score"],
+                        ),
                         "file_path": path,
                     }
                 )
@@ -331,9 +420,12 @@ Rules:
         if repo_metadata.get("open_issues_count", 0) > 50:
             risks.append(
                 {
-                    "title": "High open issue count",
+                    "title": "High maintenance load",
                     "severity": "low",
-                    "description": "A high issue count can indicate maintenance pressure, unresolved bugs, or a large backlog of improvement work.",
+                    "description": (
+                        "The repository has a high number of open issues, which may indicate unresolved bugs, maintenance pressure, "
+                        "or a growing backlog. Review recurring issue themes and prioritize stability or developer-experience improvements."
+                    ),
                     "file_path": None,
                 }
             )
@@ -362,66 +454,92 @@ Rules:
         if not has_tests:
             improvements.append(
                 {
-                    "title": "Add automated test coverage",
+                    "title": "Add automated regression coverage",
                     "category": "Testing",
                     "priority": "High",
-                    "description": "Introduce unit and integration tests for the most important flows in the repository.",
-                    "rationale": "No strong test presence was detected in the analyzed files, which increases regression risk.",
+                    "description": (
+                        "Add unit and integration tests around the most important workflows before adding more features."
+                    ),
+                    "rationale": (
+                        "No strong test presence was detected, so future changes have a higher chance of breaking existing behavior silently."
+                    ),
                 }
             )
 
         if not has_readme:
             improvements.append(
                 {
-                    "title": "Improve onboarding documentation",
+                    "title": "Create onboarding documentation",
                     "category": "Documentation",
                     "priority": "High",
-                    "description": "Add or expand a README with setup steps, usage examples, and contribution guidance.",
-                    "rationale": "Good documentation reduces onboarding time and makes the project easier to maintain.",
+                    "description": (
+                        "Add a README with project purpose, setup steps, required environment variables, run commands, and example usage."
+                    ),
+                    "rationale": (
+                        "Clear onboarding docs reduce setup friction and make the repository easier for new engineers to evaluate."
+                    ),
                 }
             )
 
         if not has_ci:
             improvements.append(
                 {
-                    "title": "Add CI pipeline",
+                    "title": "Add continuous integration checks",
                     "category": "Developer Experience",
                     "priority": "Medium",
-                    "description": "Set up a CI workflow to run tests, linting, and basic quality checks on each change.",
-                    "rationale": "Automated validation improves reliability and catches issues earlier in development.",
+                    "description": (
+                        "Create a CI workflow that runs tests, linting, and basic build validation on every pull request."
+                    ),
+                    "rationale": (
+                        "Automated validation catches regressions earlier and gives reviewers more confidence in changes."
+                    ),
                 }
             )
 
         if large_files:
             improvements.append(
                 {
-                    "title": "Break down oversized files",
+                    "title": "Split oversized files by responsibility",
                     "category": "Maintainability",
                     "priority": "Medium",
-                    "description": "Refactor large files into smaller modules with clearer responsibilities.",
-                    "rationale": f"{len(large_files)} large file(s) were detected, which can make maintenance and review harder.",
+                    "description": (
+                        "Break large files into smaller modules organized around features, domain responsibilities, or clear layers."
+                    ),
+                    "rationale": (
+                        f"{len(large_files)} large file(s) were detected. Smaller files are easier to review, test, and safely modify."
+                    ),
                 }
             )
 
         if complex_files:
+            complex_names = ", ".join(item["path"].split("/")[-1] for item in complex_files[:3])
             improvements.append(
                 {
-                    "title": "Reduce high-complexity modules",
+                    "title": "Reduce decision-heavy modules",
                     "category": "Code Quality",
                     "priority": "Medium",
-                    "description": "Refactor files with heavy branching or mixed responsibilities into simpler components.",
-                    "rationale": f"{len(complex_files)} file(s) showed high estimated complexity, which may affect readability and change safety.",
+                    "description": (
+                        "Refactor complex files by extracting repeated branches, isolating business rules, and adding focused tests first."
+                    ),
+                    "rationale": (
+                        f"{len(complex_files)} high-complexity file(s) were detected, including {complex_names}. "
+                        f"These files are likely to slow debugging and increase regression risk."
+                    ),
                 }
             )
 
         if todo_heavy_files:
             improvements.append(
                 {
-                    "title": "Address TODO and FIXME backlog",
+                    "title": "Convert TODO/FIXME markers into tracked work",
                     "category": "Code Quality",
                     "priority": "Low",
-                    "description": "Review unfinished work markers and convert them into tracked issues or completed improvements.",
-                    "rationale": f"{len(todo_heavy_files)} file(s) contain a high density of TODO/FIXME markers.",
+                    "description": (
+                        "Review TODO/FIXME/HACK markers and either resolve them or convert them into visible backlog items."
+                    ),
+                    "rationale": (
+                        f"{len(todo_heavy_files)} file(s) contain a high density of unfinished-work markers."
+                    ),
                 }
             )
 
@@ -431,8 +549,12 @@ Rules:
                     "title": "Review maintenance backlog",
                     "category": "Project Health",
                     "priority": "Low",
-                    "description": "Audit recurring issue themes and prioritize high-value cleanup or stabilization work.",
-                    "rationale": "A high open issue count may indicate maintenance pressure or unresolved technical debt.",
+                    "description": (
+                        "Audit open issues, identify repeated failure themes, and prioritize high-impact cleanup work."
+                    ),
+                    "rationale": (
+                        "A high open issue count can indicate maintenance pressure or unresolved technical debt."
+                    ),
                 }
             )
 
@@ -442,8 +564,12 @@ Rules:
                     "title": "Add architecture documentation",
                     "category": "Scalability",
                     "priority": "Medium",
-                    "description": "Document key modules, entry points, and system boundaries for faster repository understanding.",
-                    "rationale": "Larger repositories benefit from explicit structure and architectural guidance for new contributors.",
+                    "description": (
+                        "Document main modules, entry points, request/data flow, and ownership boundaries."
+                    ),
+                    "rationale": (
+                        "Larger repositories are easier to onboard into when system structure is explained explicitly."
+                    ),
                 }
             )
 
@@ -542,10 +668,7 @@ Requirements:
                             "purpose, architecture, data flow, and onboarding steps clearly."
                         ),
                     },
-                    {
-                        "role": "user",
-                        "content": prompt,
-                    },
+                    {"role": "user", "content": prompt},
                 ],
             )
 
