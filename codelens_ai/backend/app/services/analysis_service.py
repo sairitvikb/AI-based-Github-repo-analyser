@@ -29,6 +29,12 @@ class AnalysisService:
 
         filename = lower_path.split("/")[-1]
 
+        # AI-powered summaries for important code files
+        if self._should_use_ai_file_summary(lower_path, content):
+            ai_summary = self._generate_ai_file_summary(path, content)
+            if ai_summary:
+                return ai_summary
+
         if filename == "readme.md":
             return "Top-level README describing the repository purpose, setup flow, usage instructions, and main developer entry points."
 
@@ -109,10 +115,13 @@ class AnalysisService:
             return "Python implementation file containing core application logic."
 
         if lower_path.endswith((".ts", ".tsx", ".js", ".jsx")):
-            functions = self._count_matches(r"(function\s+\w+|const\s+\w+\s*=|export\s+default)", content)
+            functions = self._count_matches(
+                r"(function\s+\w+|const\s+\w+\s*=|export\s+default)",
+                content,
+            )
 
             if "component" in lower_path or lower_path.endswith(".tsx"):
-                return f"Frontend UI component responsible for rendering interactive application views or reusable interface sections."
+                return "Frontend UI component responsible for rendering interactive application views or reusable interface sections."
             if "hook" in lower_path:
                 return "Reusable frontend hook managing state, side effects, or shared UI behavior."
             if "service" in lower_path or "api" in lower_path:
@@ -130,6 +139,93 @@ class AnalysisService:
             return "Stylesheet defining layout, theme, spacing, and visual presentation rules."
 
         return f"{language} file containing implementation or configuration details."
+
+    def _should_use_ai_file_summary(self, lower_path: str, content: str) -> bool:
+        if not settings.groq_api_key:
+            return False
+
+        if len(content.strip()) < 250:
+            return False
+
+        ignored_extensions = (
+            ".md",
+            ".yml",
+            ".yaml",
+            ".json",
+            ".lock",
+            ".txt",
+            ".css",
+            ".html",
+        )
+
+        if lower_path.endswith(ignored_extensions):
+            return False
+
+        # Skip most test files so they stay fast and predictable
+        if lower_path.startswith("tests/") or "/tests/" in lower_path:
+            return False
+
+        return lower_path.endswith((".py", ".ts", ".tsx", ".js", ".jsx"))
+
+    def _generate_ai_file_summary(self, path: str, content: str) -> str:
+        try:
+            from groq import Groq
+
+            if not settings.groq_api_key:
+                return ""
+
+            client = Groq(api_key=settings.groq_api_key)
+
+            snippet = content[:3500]
+
+            prompt = f"""
+You are a senior software engineer reviewing one file from a GitHub repository.
+
+File path:
+{path}
+
+File content:
+{snippet}
+
+Write a useful file insight in 2 short sentences.
+
+Explain:
+- What this file actually does
+- Why it matters in the repository
+
+Rules:
+- Do not count functions, classes, or imports.
+- Do not say generic phrases like "contains logic" or "implementation file".
+- Be specific and practical.
+- Do not use markdown bullets.
+- Keep it under 70 words.
+"""
+
+            response = client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                temperature=0.2,
+                max_tokens=140,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": (
+                            "You explain source files like a senior engineer. "
+                            "Focus on purpose, responsibility, and system role."
+                        ),
+                    },
+                    {
+                        "role": "user",
+                        "content": prompt,
+                    },
+                ],
+            )
+
+            summary = (response.choices[0].message.content or "").strip()
+            return summary.replace("\n", " ").strip()
+
+        except Exception as exc:
+            print(f"AI file summary failed for {path}: {exc}")
+            return ""
 
     def estimate_complexity(self, content: str) -> int:
         control_flow_hits = len(
